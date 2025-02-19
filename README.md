@@ -1,1 +1,8 @@
-# Booking-system-backend
+```
+npm install
+npm run dev
+```
+
+```
+npm run deploy
+```
