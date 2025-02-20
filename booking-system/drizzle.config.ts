@@ -3,7 +3,7 @@ import { defineConfig } from "drizzle-kit";
 
 export default defineConfig({
   out: "./drizzle",
-  schema: "./src/db/schema.ts",
+  schema: "./drizzle/scehma.ts",
   dialect: "sqlite",
   driver: "d1-http", // ✅ Set driver to "d1-http" (required for Cloudflare D1)
   dbCredentials: {
