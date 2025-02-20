@@ -1,0 +1,10 @@
+name = "booking-system"
+main = "src/index.ts"
+compatibility_date = "2025-02-14"
+node_compat = true
+
+[[d1_databases]]
+binding = "DB"  
+database_name = "booking-system"
+database_id = "42c7b865-d84c-415a-ba0c-0a5a46c596af"
+migrations_dir = "drizzle"
