@@ -1,12 +1,12 @@
 import { Hono } from "hono";
-import bookingsRouter from "./routes/bookings";
+import authRouter from "./routes/auth";
+import bookingRouter from "./routes/bookings";
+import adminRouter from "./routes/admin";
 
-type Bindings = {
-  DB: D1Database;
-};
+const app = new Hono();
 
-const app = new Hono<{ Bindings: Bindings }>();
-
-app.route("/bookings", bookingsRouter);
+app.route("/auth", authRouter);
+app.route("/bookings", bookingRouter);
+app.route("/admin", adminRouter);
 
 export default app;

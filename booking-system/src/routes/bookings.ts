@@ -1,48 +1,104 @@
-import { Hono } from "hono";
-import { getDB } from "../../drizzle/config";
-import { bookings } from "../../drizzle/schema";
+import { Hono, Context, Next } from "hono";
 import { eq } from "drizzle-orm";
+import { verify, JwtPayload } from "jsonwebtoken";
+import { bookings } from "../../drizzle/schema";
+import { z } from "zod";
+import { getDB } from "../../drizzle/db";
 
-const bookingsRouter = new Hono<{ Bindings: { DB: D1Database } }>();
+// Define JWT Payload Type
+interface AuthPayload extends JwtPayload {
+  id: string;
+  role: string;
+}
 
-// Get all bookings
-bookingsRouter.get("/get", async (c) => {
-  const db = getDB(c.env.DB);
-  const results = await db.select().from(bookings);
-  return c.json(results);
+// 🔹 Hono Router with Type Support
+const bookingRouter = new Hono<{
+  Variables: {
+    user: AuthPayload;
+  };
+}>();
+
+// 🔹 Authentication Middleware
+const authMiddleware = async (c: Context, next: Next) => {
+  try {
+    const token = c.req.header("Authorization")?.replace("Bearer ", "");
+    if (!token) return c.json({ error: "Unauthorized" }, 401);
+
+    const secretKey = process.env.JWT_SECRET;
+    if (!secretKey) throw new Error("JWT_SECRET is not set");
+
+    const decoded = verify(token, secretKey) as AuthPayload;
+    
+    // ✅ Correct way to set user in context
+    c.set("user", decoded);
+
+    await next();
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : "Invalid token";
+    return c.json({ error: errorMessage }, 401);
+  }
+};
+
+// ✅ Book a Consultation
+const bookingSchema = z.object({
+  name: z.string().min(1, "Name is required"),
+  email: z.string().email("Invalid email format"),
+  date: z.string().min(1, "Date is required"),
 });
 
-// Get a single booking by ID
-bookingsRouter.get("/:id", async (c) => {
-  const db = getDB(c.env.DB);
-  const id = c.req.param("id");
-  const result = await db.select().from(bookings).where(eq(bookings.id, Number(id)));
-  return c.json(result.length ? result[0] : { error: "Booking not found" }, 404);
+bookingRouter.post("/", authMiddleware, async (c) => {
+  try {
+    const db = getDB(c);
+    const user = c.get("user"); // ✅ Correct way to get user from context
+    if (!user || !user.id) return c.json({ error: "Unauthorized" }, 401);
+
+    const body = await c.req.json();
+    const { name, email, date } = bookingSchema.parse(body);
+
+    await db.insert(bookings).values({
+      id: crypto.randomUUID(),
+      userId: user.id,
+      name,
+      email,
+      date,
+    });
+
+    return c.json({ message: "Booking created successfully" });
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : "Failed to create booking";
+    return c.json({ error: errorMessage }, 400);
+  }
 });
 
-// Create a new booking
-bookingsRouter.post("/add", async (c) => {
-  const db = getDB(c.env.DB);
-  const { name, email, date, fileUrl } = await c.req.json();
-  const result = await db.insert(bookings).values({ name, email, date, fileUrl }).returning();
-  return c.json(result[0]);
+// ✅ Get All User Bookings
+bookingRouter.get("/", authMiddleware, async (c) => {
+  try {
+    const db = getDB(c);
+    const user = c.get("user");
+    if (!user || !user.id) return c.json({ error: "Unauthorized" }, 401);
+
+    const results = await db.select().from(bookings).where(eq(bookings.userId, user.id));
+    return c.json(results);
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : "Failed to fetch bookings";
+    return c.json({ error: errorMessage }, 500);
+  }
 });
 
-// Update a booking
-bookingsRouter.put("/:id", async (c) => {
-  const db = getDB(c.env.DB);
-  const id = c.req.param("id");
-  const { name, email, date, fileUrl } = await c.req.json();
-  const result = await db.update(bookings).set({ name, email, date, fileUrl }).where(eq(bookings.id, Number(id))).returning();
-  return c.json(result.length ? result[0] : { error: "Booking not found" }, 404);
+// ✅ Delete a Booking
+bookingRouter.delete("/:id", authMiddleware, async (c) => {
+  try {
+    const db = getDB(c);
+    const { id } = c.req.param();
+
+    const deleted = await db.delete(bookings).where(eq(bookings.id, id)).returning();
+    if (deleted.length === 0) return c.json({ error: "Booking not found" }, 404);
+
+    return c.json({ success: true, message: "Booking deleted successfully" });
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : "Failed to delete booking";
+    return c.json({ error: errorMessage }, 500);
+  }
 });
 
-// Delete a booking
-bookingsRouter.delete("/:id", async (c) => {
-  const db = getDB(c.env.DB);
-  const id = c.req.param("id");
-  await db.delete(bookings).where(eq(bookings.id, Number(id)));
-  return c.json({ success: true });
-});
-
-export default bookingsRouter;
+export default bookingRouter;
