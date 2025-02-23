@@ -5,22 +5,8 @@
     {
       "idx": 0,
       "version": "6",
-      "when": 1740078923491,
-      "tag": "0000_uneven_emma_frost",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "6",
-      "when": 1740137151000,
-      "tag": "0001_silly_proteus",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "6",
-      "when": 1740140485922,
-      "tag": "0002_dusty_silver_fox",
+      "when": 1740329260024,
+      "tag": "20250223164739_odd_sleepwalker",
       "breakpoints": true
     }
   ]

@@ -1,12 +1,14 @@
 import { Hono } from "hono";
-import authRouter from "./routes/auth";
-import bookingRouter from "./routes/bookings";
-import adminRouter from "./routes/admin";
+import { authRoutes } from "./routes/auth";
+import { userRoutes } from "./routes/users";
+import { bookingRoutes } from "./routes/bookings";
+import { paymentRoutes } from "./routes/payment";
 
 const app = new Hono();
 
-app.route("/auth", authRouter);
-app.route("/bookings", bookingRouter);
-app.route("/admin", adminRouter);
+app.route("/auth", authRoutes);
+app.route("/users", userRoutes);
+app.route("/bookings", bookingRoutes);
+app.route("/payments", paymentRoutes); // Register payment routes
 
 export default app;

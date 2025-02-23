@@ -6,5 +6,19 @@ node_compat = true
 [[d1_databases]]
 binding = "DB"  
 database_name = "booking-system"
-database_id = "42c7b865-d84c-415a-ba0c-0a5a46c596af"
+database_id = "4c39d04f-cb45-4085-9eb9-7bd48c49b0ff"
 migrations_dir = "drizzle"
+
+name = "consultpro"
+main = "./src/index.ts"
+compatibility_date = "2024-02-21"
+
+# [vars]
+# MY_VAR = "my-variable"
+
+[vars]
+JWT_SECRET = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.cThIIoDvwdueQB468K5xDc5633seEFoqwxjF_xSJyQQ"
+
+
+# [ai]
+# binding = "AI"
