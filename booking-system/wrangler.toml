@@ -6,12 +6,9 @@ node_compat = true
 [[d1_databases]]
 binding = "DB"  
 database_name = "booking-system"
-database_id = "4c39d04f-cb45-4085-9eb9-7bd48c49b0ff"
+database_id = "8d0e9f52-33fe-47da-8ace-13475046494a"
 migrations_dir = "drizzle"
 
-name = "consultpro"
-main = "./src/index.ts"
-compatibility_date = "2024-02-21"
 
 # [vars]
 # MY_VAR = "my-variable"
