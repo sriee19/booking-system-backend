@@ -8,14 +8,25 @@ import { verifyToken, generateToken } from "../utils/jwt";
 
 export const bookingRoutes = new Hono<{ Bindings: { DB: D1Database; JWT_SECRET: string } }>();
 
-bookingRoutes.use("*", cors({
-  origin: "http://localhost:3000", // Allow frontend domain
-  allowMethods: ["GET", "POST", "PUT", "DELETE"],
-  allowHeaders: ["Content-Type", "Authorization"],
-  credentials: true, // Allow cookies and authentication headers
-}));
 
-// Create Booking
+// ✅ Handle CORS globally
+bookingRoutes.use(
+  cors({
+    origin: "*", // Allow all origins (for testing, later restrict it)
+    allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowHeaders: ["Content-Type", "Authorization"],
+    credentials: true, // Allow cookies and authentication headers
+    exposeHeaders: ["Content-Length", "X-Kuma-Revision"],
+    maxAge: 600, // Cache the preflight response for 10 minutes
+  })
+);
+
+// ✅ Explicitly handle OPTIONS requests for preflight
+bookingRoutes.options("*", (c) => {
+  return c.text("OK", 200);
+});
+
+// ✅ Create Booking Route
 bookingRoutes.post("/", async (c) => {
   const token = c.req.header("Authorization")?.split(" ")[1];
   if (!token) return c.json({ error: "Unauthorized" }, 401);
@@ -98,24 +109,39 @@ bookingRoutes.delete("/:uid", async (c) => {
   return c.json({ token: newToken });
 });
 
-// Get All Bookings (Admin Only)
-bookingRoutes.get("/", async (c) => {
+// Get All Bookings (For All Authenticated Users)
+bookingRoutes.get("/book", async (c) => {
   const token = c.req.header("Authorization")?.split(" ")[1];
   if (!token) return c.json({ error: "Unauthorized" }, 401);
 
   const payload = await verifyToken(token, c.env.JWT_SECRET);
   if (!payload) return c.json({ error: "Invalid token" }, 401);
 
-  if (payload.role !== "admin") {
-    return c.json({ error: "Forbidden: Admin access required" }, 403);
-  }
-
   const db = initializeDb(c.env.DB);
   const allBookings = await db
     .select()
-    .from(bookings);
+    .from(bookings)
 
-  // Generate JWT token
-  const newToken = await generateToken({ uuid: payload.uuid, role: payload.role }, c.env.JWT_SECRET);
-  return c.json({ token: newToken, bookings: allBookings });
+  return c.json({ bookings: allBookings });
 });
+
+// Get Bookings for a Specific User (Sorted)
+bookingRoutes.get("/user", async (c) => {
+  const token = c.req.header("Authorization")?.split(" ")[1];
+  if (!token) return c.json({ error: "Unauthorized" }, 401);
+
+  const payload = await verifyToken(token, c.env.JWT_SECRET);
+  if (!payload || typeof payload.uuid !== "string") {
+    return c.json({ error: "Invalid token or user ID" }, 401);
+  }
+
+  const db = initializeDb(c.env.DB);
+  const userBookings = await db
+    .select()
+    .from(bookings)
+    .where(eq(bookings.userid, payload.uuid))
+
+  return c.json({ bookings: userBookings });
+});
+
+

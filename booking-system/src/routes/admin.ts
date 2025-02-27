@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { cors } from "hono/cors";
 import { UpdateUserSchema, LoginSchema } from "../validations/users";
 import { initializeDb } from "../db";
 import { users } from "../db/schema";
@@ -6,10 +7,28 @@ import { eq } from "drizzle-orm";
 import { verifyToken, generateToken } from "../utils/jwt";
 import bcrypt from "bcryptjs";
 
-export const userRoutes = new Hono<{ Bindings: { DB: D1Database; JWT_SECRET: string } }>();
+export const adminRoutes = new Hono<{ Bindings: { DB: D1Database; JWT_SECRET: string } }>();
+
+
+adminRoutes.use(cors({
+  origin: "*",
+  allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowHeaders: ["Content-Type", "Authorization"],
+  credentials: true,
+}));
+
+// Handle OPTIONS requests manually
+adminRoutes.options("*", (c) => {
+  c.header("Access-Control-Allow-Origin", "*");
+  c.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+  c.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  c.header("Access-Control-Allow-Credentials", "true");
+  return c.body(null, 204);
+});
+
 
 // Create Admin User (Only for Initial Setup)
-userRoutes.post("/admin", async (c) => {
+adminRoutes.post("/admin", async (c) => {
   const { email, password } = await c.req.json();
 
   if (!email || !password) {
@@ -40,40 +59,8 @@ userRoutes.post("/admin", async (c) => {
   }
 });
 
-// Create User (No Authentication Required)
-userRoutes.post("/", async (c) => {
-  const { email, password, role = "user" } = await c.req.json();
-
-  if (!email || !password) {
-    return c.json({ error: "Email and password are required" }, 400);
-  }
-
-  const db = initializeDb(c.env.DB);
-  const hashedPassword = await bcrypt.hash(password, 10);
-
-  try {
-    const [newUser] = await db
-      .insert(users)
-      .values({
-        uuid: crypto.randomUUID(),
-        email,
-        password: hashedPassword,
-        role,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      })
-      .returning();
-
-    // Generate JWT token
-    const token = await generateToken({ uuid: newUser.uuid, role: newUser.role }, c.env.JWT_SECRET);
-    return c.json({ token });
-  } catch (err) {
-    return c.json({ error: "User already exists or invalid data" }, 400);
-  }
-});
-
 // Login User/Admin
-userRoutes.post("/login", async (c) => {
+adminRoutes.post("/login", async (c) => {
   const body = await c.req.json();
   const { email, password } = LoginSchema.parse(body);
 
@@ -90,7 +77,7 @@ userRoutes.post("/login", async (c) => {
 });
 
 // Update User (No Authentication Required)
-userRoutes.put("/:uuid", async (c) => {
+adminRoutes.put("/:uuid", async (c) => {
   const uuid = c.req.param("uuid");
   const body = await c.req.json();
   const { name, email, phoneno } = UpdateUserSchema.parse(body);
@@ -112,7 +99,7 @@ userRoutes.put("/:uuid", async (c) => {
 });
 
 // Delete User (Admin Only)
-userRoutes.delete("/:uuid", async (c) => {
+adminRoutes.delete("/:uuid", async (c) => {
   const token = c.req.header("Authorization")?.split(" ")[1];
   if (!token) return c.json({ error: "Unauthorized" }, 401);
 
@@ -133,7 +120,7 @@ userRoutes.delete("/:uuid", async (c) => {
 });
 
 // Get All Users (Admin Only)
-userRoutes.get("/", async (c) => {
+adminRoutes.get("/users", async (c) => {
   const token = c.req.header("Authorization")?.split(" ")[1];
   if (!token) return c.json({ error: "Unauthorized" }, 401);
 
@@ -155,10 +142,5 @@ userRoutes.get("/", async (c) => {
       updatedAt: users.updatedAt,
     })
     .from(users);
-
-  // Generate JWT token
-  const newToken = await generateToken({ uuid: payload.uuid, role: payload.role }, c.env.JWT_SECRET);
-
-  // Return token and user list
-  return c.json({ token: newToken, users: allUsers });
+  return c.json({ users: allUsers });
 });
