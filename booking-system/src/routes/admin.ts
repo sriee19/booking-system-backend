@@ -1,8 +1,8 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
-import { UpdateUserSchema, LoginSchema } from "../validations/users";
+import { UpdateUserSchema, LoginSchema, UpdateBookingSchema } from "../validations/users";
 import { initializeDb } from "../db";
-import { users } from "../db/schema";
+import { bookings, users } from "../db/schema";
 import { eq } from "drizzle-orm";
 import { verifyToken, generateToken } from "../utils/jwt";
 import bcrypt from "bcryptjs";
@@ -28,7 +28,7 @@ adminRoutes.options("*", (c) => {
 
 
 // Create Admin User (Only for Initial Setup)
-adminRoutes.post("/admin", async (c) => {
+adminRoutes.post("/create", async (c) => {
   const { email, password } = await c.req.json();
 
   if (!email || !password) {
@@ -143,4 +143,30 @@ adminRoutes.get("/users", async (c) => {
     })
     .from(users);
   return c.json({ users: allUsers });
+});
+
+
+// Update Booking
+adminRoutes.put("/book/:uid", async (c) => {
+  const token = c.req.header("Authorization")?.split(" ")[1];
+  if (!token) return c.json({ error: "Unauthorized" }, 401);
+
+  const payload = await verifyToken(token, c.env.JWT_SECRET);
+  if (!payload) return c.json({ error: "Invalid token" }, 401);
+
+  const uid = c.req.param("uid");
+  const body = await c.req.json();
+  const { status } = UpdateBookingSchema.parse(body);
+
+  const db = initializeDb(c.env.DB);
+  const updatedBooking = await db
+    .update(bookings)
+    .set({
+      status: status || undefined,
+      updatedAt: new Date().toISOString(),
+    })
+    .where(eq(bookings.uid, uid))
+    .returning();
+console.log(updatedBooking);
+  return c.json({ bookings: updatedBooking });
 });

@@ -1,12 +1,19 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
-import { CreateBookingSchema, UpdateBookingSchema } from "../validations/users";
+import { CreateBookingSchema } from "../validations/users";
 import { initializeDb } from "../db";
 import { bookings } from "../db/schema";
 import { eq } from "drizzle-orm";
 import { verifyToken, generateToken } from "../utils/jwt";
+import { z } from "zod";
 
 export const bookingRoutes = new Hono<{ Bindings: { DB: D1Database; JWT_SECRET: string } }>();
+
+export const UpdateBookingSchema = z.object({
+  name: z.string().min(1, "Name is required"),
+  email: z.string().email("Invalid email format"),
+  calendarDate: z.string().min(1, "Date is required"),
+});
 
 
 // ✅ Handle CORS globally
@@ -60,37 +67,57 @@ bookingRoutes.post("/", async (c) => {
   }
 });
 
-// Update Booking
+// ✅ Update Booking Route
 bookingRoutes.put("/:uid", async (c) => {
   const token = c.req.header("Authorization")?.split(" ")[1];
   if (!token) return c.json({ error: "Unauthorized" }, 401);
 
   const payload = await verifyToken(token, c.env.JWT_SECRET);
-  if (!payload) return c.json({ error: "Invalid token" }, 401);
-
-  const uid = c.req.param("uid");
-  const body = await c.req.json();
-  const { status, paymentStatus } = UpdateBookingSchema.parse(body);
-
-  const db = initializeDb(c.env.DB);
-  const updatedBooking = await db
-    .update(bookings)
-    .set({
-      status: status || undefined,
-      paymentStatus: paymentStatus || undefined,
-      updatedAt: new Date().toISOString(),
-    })
-    .where(eq(bookings.uid, uid))
-    .returning();
-
-  if (!updatedBooking.length) {
-    return c.json({ error: "Booking not found" }, 404);
+  if (!payload || typeof payload.uuid !== "string") {
+    return c.json({ error: "Invalid token or user ID" }, 401);
   }
 
-  // Generate JWT token
-  const newToken = await generateToken({ uuid: payload.uuid, role: payload.role }, c.env.JWT_SECRET);
-  return c.json({ token: newToken });
+  try {
+    const uid = c.req.param("uid");
+    const body = await c.req.json();
+    const { name, email, calendarDate } = UpdateBookingSchema.parse(body);
+
+    const db = initializeDb(c.env.DB);
+
+    // Check if the booking exists and belongs to the user
+    const existingBooking = await db
+      .select()
+      .from(bookings)
+      .where(eq(bookings.uid, uid))
+      .then((rows) => rows[0]);
+
+    if (!existingBooking) {
+      return c.json({ error: "Booking not found" }, 404);
+    }
+
+    if (existingBooking.userid !== payload.uuid) {
+      return c.json({ error: "Unauthorized to update this booking" }, 403);
+    }
+
+    // Update the booking details
+    const [updatedBooking] = await db
+      .update(bookings)
+      .set({
+        name,
+        email,
+        calendarDate,
+        updatedAt: new Date().toISOString(),
+      })
+      .where(eq(bookings.uid, uid))
+      .returning();
+
+    return c.json({ message: "Booking updated successfully", booking: updatedBooking });
+  } catch (err) {
+    console.error("Update error:", err);
+    return c.json({ error: "Invalid data or server error" }, 400);
+  }
 });
+
 
 // Delete Booking
 bookingRoutes.delete("/:uid", async (c) => {
