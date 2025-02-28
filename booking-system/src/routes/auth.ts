@@ -90,7 +90,7 @@ authRoutes.put("/change-password", async (c) => {
   }
 });
 
-authRoutes.get("/user", async (c) => {
+authRoutes.put("/update-profile", async (c) => {
   try {
     const token = c.req.header("Authorization")?.split(" ")[1];
     if (!token) return c.json({ error: "Unauthorized" }, 401);
@@ -98,12 +98,24 @@ authRoutes.get("/user", async (c) => {
     const payload = await verifyToken(token, c.env.JWT_SECRET);
     if (!payload) return c.json({ error: "Invalid token" }, 401);
 
+    const { name, email, phone } = await c.req.json();
+    if (!name || !email) {
+      return c.json({ error: "Name and Email are required" }, 400);
+    }
+
     const db = initializeDb(c.env.DB);
-    const user = await db.query.users.findFirst({ where: (users, { eq }) => eq(users.uuid, payload.uuid as string) });
+    const user = await db.query.users.findFirst({
+      where: (users, { eq }) => eq(users.uuid, payload.uuid as string),
+    });
 
     if (!user) return c.json({ error: "User not found" }, 404);
 
-    return c.json({ uuid: user.uuid, name: user.name, email: user.email }, 200);
+    await db
+      .update(users)
+      .set({ name, email, phoneno: phone })
+      .where(eq(users.uuid, payload.uuid as string));
+
+    return c.json({ message: "Profile updated successfully" }, 200);
   } catch (err) {
     return c.json({ error: "Server error" }, 500);
   }
