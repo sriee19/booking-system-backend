@@ -75,32 +75,7 @@ adminRoutes.post("/login", async (c) => {
   }
 });
 
-// Delete User (Admin Only)
-adminRoutes.delete("/:uuid", async (c) => {
-  try {
-    const token = c.req.header("Authorization")?.split(" ")[1];
-    if (!token) return c.json({ error: "Unauthorized" }, 401);
 
-    const payload = await verifyToken(token, c.env.JWT_SECRET);
-    if (!payload) return c.json({ error: "Invalid token" }, 401);
-
-    if (payload.role !== "admin") {
-      return c.json({ error: "Forbidden: Admin access required" }, 403);
-    }
-
-    const uuid = c.req.param("uuid");
-    const db = initializeDb(c.env.DB);
-    const deleted = await db.delete(users).where(eq(users.uuid, uuid));
-
-    if (!deleted) {
-      return c.json({ error: "User not found" }, 404);
-    }
-
-    return c.json({ message: "User deleted successfully" });
-  } catch (err) {
-    return c.json({ error: "Internal Server Error" }, 500);
-  }
-});
 
 // Update Booking
 adminRoutes.put("/book/:uid", async (c) => {
@@ -148,13 +123,13 @@ adminRoutes.get("/users", async (c) => {
     const db = initializeDb(c.env.DB);
     const allUsers = await db.select().from(users);
 
-    return c.json({ bookings: allUsers }, 200);
+    return c.json({ users: allUsers }, 200);
   } catch (err) {
     return c.json({ error: "Server error" }, 500);
   }
 });
 
-
+//Update user
 adminRoutes.put("/:uuid", async (c) => {
   try {
     const token = c.req.header("Authorization")?.split(" ")[1];
@@ -170,14 +145,14 @@ adminRoutes.put("/:uuid", async (c) => {
     const { name, email, role, phoneno } = UpdateUserSchema.parse(body); // Ensure `role` exists in schema
 
     const db = initializeDb(c.env.DB);
-    const existingUser = await db
-      .select()
-      .from(users)
-      .where(eq(users.uuid, uuid))
-      .then((rows) => rows[0]);
+    // const existingUser = await db
+    //   .select()
+    //   .from(users)
+    //   .where(eq(users.uuid, uuid))
+    //   .then((rows) => rows[0]);
 
-    if (!existingUser) return c.json({ error: "User not found" }, 404);
-    if (existingUser.uuid !== payload.uuid) return c.json({ error: "Forbidden" }, 403);
+    // if (!existingUser) return c.json({ error: "User not found" }, 404);
+    // if (existingUser.uuid !== payload.uuid) return c.json({ error: "Forbidden" }, 403);
 
     const updatedFields: any = { name, email, updatedAt: new Date().toISOString() };
     if (role) updatedFields.role = role;
@@ -193,5 +168,33 @@ adminRoutes.put("/:uuid", async (c) => {
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : "Invalid data or server error";
     return c.json({ error: errorMessage }, 400);
+  }
+});
+
+
+// Delete User (Admin Only)
+adminRoutes.delete("/:uuid", async (c) => {
+  try {
+    const token = c.req.header("Authorization")?.split(" ")[1];
+    if (!token) return c.json({ error: "Unauthorized" }, 401);
+
+    const payload = await verifyToken(token, c.env.JWT_SECRET);
+    if (!payload) return c.json({ error: "Invalid token" }, 401);
+
+    if (payload.role !== "admin") {
+      return c.json({ error: "Forbidden: Admin access required" }, 403);
+    }
+
+    const uuid = c.req.param("uuid");
+    const db = initializeDb(c.env.DB);
+    const deleted = await db.delete(users).where(eq(users.uuid, uuid));
+
+    if (!deleted) {
+      return c.json({ error: "User not found" }, 404);
+    }
+
+    return c.json({ message: "User deleted successfully" });
+  } catch (err) {
+    return c.json({ error: "Internal Server Error" }, 500);
   }
 });
