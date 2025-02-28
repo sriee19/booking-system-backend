@@ -6,5 +6,16 @@ node_compat = true
 [[d1_databases]]
 binding = "DB"  
 database_name = "booking-system"
-database_id = "42c7b865-d84c-415a-ba0c-0a5a46c596af"
+database_id = "8d0e9f52-33fe-47da-8ace-13475046494a"
 migrations_dir = "drizzle"
+
+
+# [vars]
+# MY_VAR = "my-variable"
+
+[vars]
+JWT_SECRET = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.cThIIoDvwdueQB468K5xDc5633seEFoqwxjF_xSJyQQ"
+
+
+# [ai]
+# binding = "AI"

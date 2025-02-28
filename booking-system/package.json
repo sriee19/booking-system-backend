@@ -5,17 +5,29 @@
 		"deploy": "wrangler deploy --minify",
 		"cf-typegen": "wrangler types --env-interface CloudflareBindings",
 		"build": "esbuild src/index.ts --bundle --outdir=dist --platform=node",
-  		"start": "npm run build && npx wrangler dev"
+		"start": "npm run build && npx wrangler dev",
+		  "drizzle:generate": "drizzle-kit generate"
 	},
 	"dependencies": {
+		"bcryptjs": "^3.0.2",
 		"dotenv": "^16.4.7",
 		"drizzle-orm": "^0.39.3",
-		"hono": "^4.7.2"
+		"hono": "^4.7.2",
+		"jsonwebtoken": "^9.0.2"
 	},
 	"devDependencies": {
 		"@cloudflare/workers-types": "^4.20250214.0",
+		"@types/bcrypt": "^5.0.2",
+		"@types/jsonwebtoken": "^9.0.8",
 		"drizzle-kit": "^0.30.4",
 		"tsx": "^4.19.3",
 		"wrangler": "^3.109.2"
+	},
+	"esbuild": {
+		"external": [
+			"mock-aws-s3",
+			"aws-sdk",
+			"nock"
+		]
 	}
 }
